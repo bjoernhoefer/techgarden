@@ -14,6 +14,10 @@ byte gateway[] = {
   192,168,0,1};
 byte pachube[] = {
   173,203,98,29};
+  
+// Webserver
+int websource = 0; // from where did the request come? 1=Stable, 2=Manual Run, 3=Test
+  
 
 // NTP Time stuff
 byte timeServer[] = { 
@@ -72,7 +76,7 @@ byte ignore = 0;
 int lightstarthour_01 = 06;
 int lightstartminute_01 = 40;
 int lightstophour_01 = 19;
-int lightstophour_01 = 30;
+int lightstopminute_01 = 30;
 
 
 int routernum = 0;
@@ -195,12 +199,6 @@ void loop(){
 }
 
 void repeater(){
-  /*runtimer();
-  query_xbee(1);
-  query_xbee(2);
-  query_xbee(3);
-  query_xbee(4);
-  healer();*/
 }
 
 void man_progstart(){
@@ -251,67 +249,6 @@ byte xtrans(byte value){
   delay(10);
   return value;
 }
-
-/*void query_xbee(int querynum){
- if (working == true){
-  xtrans(0x7E);
-  xtrans(0x0);
-  xtrans(0x4);
-  long xcsum = 0;
-  xcsum += xtrans(0x08);
-  xcsum += xtrans(0x52);
-  xcsum += xtrans(0x44); //D
-  switch (querynum){
-    case 1:
-    xcsum += xtrans(0x30); //0 (30 = 0, 31 = 1, 32 = 2, 33 = 3)
-    break;
-    
-    case 2:
-    xcsum += xtrans(0x31);
-    break;
-    
-    case 3:
-    xcsum += xtrans(0x32);
-    break;
-    
-    case 4:
-    xcsum += xtrans(0x33);
-    break;
-  }
-  xtrans( 0xFF - (xcsum & 0xFF));
-  
-  if (Serial1.available()){
-    if (Serial1.read() == 0x7E){
-      int MSB = Serial1.read();
-      int LSB = Serial1.read();
-      int FrameType = Serial1.read();
-      int FrameID = Serial1.read();
-      int atcmd1 = Serial1.read();
-      int atcmd2 = Serial1.read();
-      int cmdstat = Serial1.read();
-      int cmddata = Serial1.read();
-      int checksum = Serial1.read();
-      switch (querynum){
-        case 1:
-        d0 = cmddata;
-        break;
-    
-        case 2:
-        d1 = cmddata;
-        break;
-    
-        case 3:
-        d2 = cmddata;
-        break;
-    
-        case 4:
-        d3 = cmddata;
-        break;
-      }
-    }
-  }
- }
-}*/
 
 // Build command and send it via xtrans
 void xwater(int relay){
@@ -416,30 +353,6 @@ unsigned long sendNTPpacket(byte *address)
   Udp.sendPacket( packetBuffer,48,  address, 123);
 }
 
-/*void healer(){
-  query_xbee(1);
-  query_xbee(2);
-  query_xbee(3);
-  query_xbee(4);
-  Serial.print("Healer:");
-  Serial.print("D0: ");
-  Serial.print(d0);
-  Serial.print(" / D1: ");
-  Serial.print(d1);
-  Serial.print(" / D2: ");
-  Serial.print(d2);
-  Serial.print(" / D3: ");
-  Serial.println(d3);
-  if (working == true){
-    if (d3 == 1){
-      int runsum = d0 + d1 + d2;
-      if (d0 + d1 +d2  < 2){
-        stopall();
-      }
-    }
-  }
-}*/
-
 void stopall(){
  xwater(40);
  xwater(10);
@@ -461,7 +374,6 @@ void timedisplay(){
 }
 
 void webserver(){
-  boolean man_run = false;
   server.begin();
   Client client = server.available();
   if (client) {
@@ -501,26 +413,27 @@ void webserver(){
                 xwater(31);
                 delay(10);
                 xwater(11);
+                websource = 1;
                 break;
                 
                 case 11:
                 manual_run_prog1(10);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 12:
                 manual_run_prog1(15);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 13:
                 manual_run_prog1(20);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 14:
                 manual_run_prog1(30);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 20:
@@ -531,31 +444,95 @@ void webserver(){
                 xwater(31);
                 delay(10);
                 xwater(21);
+                websource = 1;
+                break;
                 
                 case 21:
                 manual_run_prog2(10);
-                man_run = true;
+                websource = true;
                 break;
                 
                 case 22:
                 manual_run_prog2(15);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 23:
                 manual_run_prog2(20);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 24:
                 manual_run_prog2(30);
-                man_run = true;
+                websource = 2;
                 break;
                 
                 case 30:
                 manual_run_prog12;
-                man_run = true;
+                websource = 2;
                 break;
+                
+                // Relay-Control
+                case 61:
+                xrelay(11);
+                websource = 3;
+                break;
+                
+                case 62:
+                xrelay(21);
+                websource = 3;
+                break;
+                
+                case 63:
+                xrelay(31);
+                websource = 3;
+                break;
+                
+                case 64:
+                xrelay(41);
+                websource = 3;
+                break;
+                
+                case 65:
+                xrelay(51);
+                websource = 3;
+                break;
+                
+                case 66:
+                xrelay(61);
+                websource = 3;
+                break;
+                
+                case 71:
+                xrelay(10);
+                websource = 3;
+                break;
+                
+                case 72:
+                xrelay(20);
+                websource = 3;
+                break;
+                
+                case 73:
+                xrelay(30);
+                websource = 3;
+                break;
+                
+                case 74:
+                xrelay(40);
+                websource = 3;
+                break;
+                
+                case 75:
+                xrelay(50);
+                websource = 3;
+                break;
+                
+                case 76:
+                xrelay(60);
+                websource = 3;
+                break;
+                
                 
                 // Debug-Options
                 case 81:
@@ -564,38 +541,47 @@ void webserver(){
                 
                 case 82:
                 xwater(11);
+                websource = 2;
                 break;
                 
                 case 83:
                 xwater(21);
+                websource = 2;
                 break;
                 
                 case 84:
                 xwater(31);
+                websource = 2;
                 break;
                 
                 case 85:
                 xlight(11);
+                websource = 2;
                 break;
                 
                 case 91:
                 xwater(40);
+                websource = 2;
                 break;
                 
                 case 92:
                 xwater(10);
+                websource = 2;
                 break;
                 
                 case 93:
                 xwater(20);
+                websource = 2;
                 break;
                 
                 case 94:
                 xwater(30);
+                websource = 2;
                 break;
                 
                 case 95:
                 xlight(10);
+                websource = 2;
                 break;
               }
               break;
@@ -614,12 +600,26 @@ void webserver(){
         client.println("<meta content=\"yes\" name=\"apple-mobile-web-app-capable\" />");
         client.println("<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\" />");
         client.println("<meta content=\"minimum-scale=1.0, width=device-width, maximum-scale=0.6667, user-scalable=no\" name=\"viewport\" />");
-        if (man_run == true){
+        switch (websource){
+          case 1:
+          client.println("<meta http-equiv=\"refresh\" content=\"2; URL=http://control.techgarden.info/\">");
+          break;
+          
+          case 2:
+          client.println("<meta http-equiv=\"refresh\" content=\"2; URL=http://control.techgarden.info/index2.html\">");
+          break;
+          
+          case 3:
+          client.println("<meta http-equiv=\"refresh\" content=\"2; URL=http://test.techgarden.info/relays.html\">");
+          break;
+        }
+        
+        /*if (man_run == true){
           client.println("<meta http-equiv=\"refresh\" content=\"2; URL=http://control.techgarden.info/index2.html\">");
         }
         else{
           client.println("<meta http-equiv=\"refresh\" content=\"2; URL=http://control.techgarden.info/\">");
-        }
+        }*/
         client.println("<link href=\"http://control.techgarden.info/css/style.css\" rel=\"stylesheet\" media=\"screen\" type=\"text/css\" />");
         client.println("<script src=\"http://control.techgarden.info/javascript/functions.js\" type=\"text/javascript\"></script>");
         client.println("<title>Befehl abgesetzt</title>");
@@ -769,6 +769,89 @@ void xlight(int state){
     case 10:
     xcsum += xtrans(0x4);
     relaystatus = 0;
+    //Serial.println("Ausschalten");
+    break;
+  }
+  xtrans( 0xFF - (xcsum & 0xFF));
+}
+
+void xrelay(int command){
+  xtrans(0x7E);
+  xtrans(0x0);
+  xtrans(0x0F);
+  long xcsum = 0;
+  xcsum += xtrans(0x10);
+  xcsum += xtrans(0x01);
+  xcsum += xtrans(0x00);
+  xcsum += xtrans(0x13);
+  xcsum += xtrans(0xA2);
+  xcsum += xtrans(0x00);
+  xcsum += xtrans(0x40);
+  xcsum += xtrans(0x69);
+  xcsum += xtrans(0x6C);
+  xcsum += xtrans(0xEB);
+  xcsum += xtrans(0x86);
+  xcsum += xtrans(0x4E);
+  xcsum += xtrans(0x00);
+  xcsum += xtrans(0x00);
+  switch (command){
+    case 11:
+    xcsum += xtrans(0x0B);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 10:
+    xcsum += xtrans(0x0A);
+    //Serial.println("Ausschalten");
+    break;
+    
+    case 21:
+    xcsum += xtrans(0x15);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 20:
+    xcsum += xtrans(0x14);
+    //Serial.println("Ausschalten");
+    break;
+    
+    case 31:
+    xcsum += xtrans(0x1F);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 30:
+    xcsum += xtrans(0x1E);
+    //Serial.println("Ausschalten");
+    break;
+    
+    case 41:
+    xcsum += xtrans(0x29);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 40:
+    xcsum += xtrans(0x28);
+    //Serial.println("Ausschalten");
+    break;
+    
+    case 51:
+    xcsum += xtrans(0x33);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 50:
+    xcsum += xtrans(0x32);
+    //Serial.println("Ausschalten");
+    break;
+    
+    case 61:
+    xcsum += xtrans(0x3D);
+    //Serial.println("Einschalten");
+    break;
+    
+    case 60:
+    xcsum += xtrans(0x3C);
     //Serial.println("Ausschalten");
     break;
   }
